@@ -4,8 +4,6 @@
 #include <array>
 #include <fstream>
 #include <string>
-#include <limits>
-#include <ios>
 #include <chrono>
 
 using namespace std::chrono;
@@ -126,7 +124,8 @@ private:
 	float outputBias[OutputNodes];						// Output bias
 	float* state;										// State of the network
 
-	float Binary(float x)	// Restricts x between -1 and 1
+	// Restricts x between -1 and 1
+	float Binary(float x)
 	{
 		return x < -1 ? -1 : x > 1 ? 1 : x;
 	}
@@ -137,7 +136,8 @@ public:
 		Initialize();
 	}
 
-	void Initialize()	// Initializes the network
+	// Initializes the network
+	void Initialize()
 	{
 		uint64_t node, childNode;
 		state = new float[NetworkNodes];
@@ -159,38 +159,29 @@ public:
 		}
 	}
 
-	void Reset()	// Resets the network to its initial state
+	// Resets the network to its initial state
+	void Reset()
 	{
 		uint64_t node;
 		for (node = 0; node < NetworkNodes; node++)
 			state[node] = initialState[node];
 	}
 
-	void ForwardPropagate(float* input, float* output)	// Propagates the input once through the network and calculates the output after NetworkIterations iterations
+	// Propagates the input once through the network and calculates the output after NetworkIterations iterations
+	void ForwardPropagate(float* input, float* output)
 	{
 		uint64_t iterations, node, childNode;
 		float sum;
 		float* nextState = new float[NetworkNodes];
 		float* temp;
 		
-		for (node = 0; node < NetworkNodes; node++)
-		{
-			sum = networkBias[node];
-			for (childNode = 0; childNode < InputNodes; childNode++)
-				sum += inputWeights[node][childNode] * input[childNode];
-			for (childNode = 0; childNode < NetworkNodes; childNode++)
-				sum += networkWeights[node][childNode] * nextState[childNode];
-			nextState[node] = Binary(sum);
-		}
-		temp = nextState;
-		nextState = state;
-		state = temp;
-
-		for (iterations = 1; iterations < NetworkIterations; iterations++)
+		for (iterations = 0; iterations < NetworkIterations; iterations++)
 		{
 			for (node = 0; node < NetworkNodes; node++)
 			{
 				sum = networkBias[node];
+			for (childNode = 0; childNode < InputNodes; childNode++)
+				sum += inputWeights[node][childNode] * input[childNode];
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
 					sum += networkWeights[node][childNode] * nextState[childNode];
 				nextState[node] = Binary(sum);
@@ -210,7 +201,8 @@ public:
 		}
 	}
 
-	void Export()	// Exports the network to network.txt
+	// Exports the network to network.txt
+	void Export()	
 	{
 		uint64_t node, childNode;
 		ofstream file;
@@ -258,17 +250,20 @@ public:
 		file.close();
 	}
 
-	void Import()	// Imports the network from network.txt
+	// Imports the network from network.txt
+	void Import()
 	{
 		string temp;
 		uint64_t node, childNode, tempParam;
 		ifstream file;
 		file.open("network.txt");
 		if (file.peek() == ifstream::traits_type::eof())
+		{
 			Initialize();
+			cout << "Importing network..." << endl;
+		}
 		else
 		{
-			//file.ignore(numeric_limits<streamsize>::max(), '\n');
 			file >> temp;
 			file >> tempParam;
 			if (temp != "InputNodes" || tempParam != InputNodes)
@@ -368,17 +363,33 @@ public:
 class NetworkTrainer
 {
 private:
-	float initialState[NetworkNodes];						// Initial state of the network
-	float inputWeights[NetworkNodes][InputNodes];			// Input weights
-	float networkWeights[NetworkNodes][NetworkNodes];		// Network weights
-	float outputWeights[OutputNodes][NetworkNodes];			// Output weights
-	float networkBias[NetworkNodes];						// Network bias
-	float outputBias[OutputNodes];							// Output bias
+	float initialState[NetworkNodes];							// Initial state of the network
+	float inputWeights[NetworkNodes][InputNodes];				// Input weights
+	float networkWeights[NetworkNodes][NetworkNodes];			// Network weights
+	float outputWeights[OutputNodes][NetworkNodes];				// Output weights
+	float networkBias[NetworkNodes];							// Network bias
+	float outputBias[OutputNodes];								// Output bias
+	float initialStateGradient[NetworkNodes];					// Initial state gradient
+	float inputWeightGradients[NetworkNodes][InputNodes];		// Input weight gradients
+	float networkWeightGradients[NetworkNodes][NetworkNodes];	// Network weight gradients
+	float outputWeightGradients[OutputNodes][NetworkNodes];		// Output weight gradients
+	float networkBiasGradient[NetworkNodes];					// Network bias gradient
+	float outputBiasGradient[OutputNodes];						// Output bias gradient
+	vector<array<float, InputNodes>> interstates;				// Intermediate states of the network
+	vector<array<float, InputNodes>> states;					// States of the network
+	vector<array<float, InputNodes>> interstateGradients;		// Intermediate gradients of the network
 
-	vector<array<float, InputNodes>> interstates;			// Intermediate states of the network
-	vector<array<float, InputNodes>> states;				// States of the network
+	// Restricts x between -1 and 1
+	float Binary(float x)
+	{
+		return x < -1 ? -1 : x > 1 ? 1 : x;
+	}
 
-	vector<array<float, InputNodes>> interstateGradients;	// Intermediate gradients of the network
+	// The gradient of Binary
+	float BinaryGradient(float x)
+	{
+		return x < -1 ? 0 : x > 1 ? 0 : 1;
+	}
 	
 public:
 	NetworkTrainer()
@@ -386,7 +397,8 @@ public:
 		Initialize();
 	}
 
-	void Initialize()	// Initializes the network
+	// Initializes the network with random weights and zeros the parameter gradients
+	void Initialize()
 	{
 		uint64_t node, childNode;
 		for (node = 0; node < NetworkNodes; node++)
@@ -403,6 +415,55 @@ public:
 			outputBias[node] = random.DoubleRandom();
 			for (childNode = 0; childNode < NetworkNodes; childNode++)
 				outputWeights[node][childNode] = random.DoubleRandom();
+		}
+		for (node = 0; node < NetworkNodes; node++)
+		{
+			networkBiasGradient[node] = 0;
+			initialStateGradient[node] = 0;
+			for (childNode = 0; childNode < InputNodes; childNode++)
+				inputWeightGradients[node][childNode] = 0;
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+				networkWeightGradients[node][childNode] = 0;
+		}
+		for (node = 0; node < OutputNodes; node++)
+		{
+			outputBiasGradient[node] = 0;
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+				outputWeightGradients[node][childNode] = 0;
+		}
+	}
+
+	// Clears the states of the network and applies the parameter gradients to the network
+	void Reset()
+	{
+		uint64_t node, childNode;
+		interstates.clear();
+		states.clear();
+		interstateGradients.clear();
+		for (node = 0; node < NetworkNodes; node++)
+		{
+			initialState[node] += initialStateGradient[node];
+			initialStateGradient[node] = 0;
+			for (childNode = 0; childNode < InputNodes; childNode++)
+			{
+				inputWeights[node][childNode] += inputWeightGradients[node][childNode];
+				inputWeightGradients[node][childNode] = 0;
+			}
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+			{
+				networkWeights[node][childNode] += networkWeightGradients[node][childNode];
+				networkWeightGradients[node][childNode] = 0;
+			}
+		}
+		for (node = 0; node < OutputNodes; node++)
+		{
+			outputBias[node] += outputBiasGradient[node];
+			outputBiasGradient[node] = 0;
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+			{
+				outputWeights[node][childNode] += outputWeightGradients[node][childNode];
+				outputWeightGradients[node][childNode] = 0;
+			}
 		}
 	}
 };
