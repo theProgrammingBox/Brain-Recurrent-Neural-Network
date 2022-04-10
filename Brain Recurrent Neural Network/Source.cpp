@@ -1,5 +1,11 @@
 // Brain Recurrent Neural Network
 #include <iostream>
+#include <vector>
+#include <array>
+#include <fstream>
+#include <string>
+#include <limits>
+#include <ios>
 #include <chrono>
 
 using namespace std::chrono;
@@ -103,11 +109,11 @@ public:
 	}
 };
 
-#define random Random()		 // Global random object
-#define InputNodes 1		 // Number of input nodes
-#define NetworkNodes 10		 // Number of nodes in the network
-#define OutputNodes 1		 // Number of output nodes
-#define NetworkIterations 10 // Number of times to run the network before the output is sampled
+#define random Random()					// Global random object
+#define InputNodes uint64_t(1)			// Number of input nodes
+#define NetworkNodes uint64_t(10)		// Number of nodes in the network
+#define OutputNodes uint64_t(1)			// Number of output nodes
+#define NetworkIterations uint64_t(10)	// Number of times to run the network before the output is calculates
 
 class Network
 {
@@ -160,31 +166,253 @@ public:
 			state[node] = initialState[node];
 	}
 
-	void ForwardPropagate(float* input, float* output)
+	void ForwardPropagate(float* input, float* output)	// Propagates the input once through the network and calculates the output after NetworkIterations iterations
 	{
 		uint64_t iterations, node, childNode;
 		float sum;
 		float* nextState = new float[NetworkNodes];
+		float* temp;
+		
+		for (node = 0; node < NetworkNodes; node++)
+		{
+			sum = networkBias[node];
+			for (childNode = 0; childNode < InputNodes; childNode++)
+				sum += inputWeights[node][childNode] * input[childNode];
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+				sum += networkWeights[node][childNode] * nextState[childNode];
+			nextState[node] = Binary(sum);
+		}
+		temp = nextState;
+		nextState = state;
+		state = temp;
 
-		for (iterations = 0; iterations < NetworkIterations; iterations++)
+		for (iterations = 1; iterations < NetworkIterations; iterations++)
 		{
 			for (node = 0; node < NetworkNodes; node++)
 			{
 				sum = networkBias[node];
-				for (childNode = 0; childNode < InputNodes; childNode++)
-					sum += inputWeights[node][childNode] * input[childNode];
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
 					sum += networkWeights[node][childNode] * nextState[childNode];
 				nextState[node] = Binary(sum);
 			}
-			float* temp = nextState;
+			temp = nextState;
 			nextState = state;
 			state = temp;
+		}
+		delete[] nextState;
+
+		for (node = 0; node < OutputNodes; node++)
+		{
+			sum = outputBias[node];
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+				sum += outputWeights[node][childNode] * state[childNode];
+			output[node] = Binary(sum);
+		}
+	}
+
+	void Export()	// Exports the network to network.txt
+	{
+		uint64_t node, childNode;
+		ofstream file;
+		file.open("network.txt");
+		file << "InputNodes " << InputNodes << "\n\n";
+		file << "NetworkNodes " << NetworkNodes << "\n\n";
+		file << "OutputNodes " << OutputNodes << "\n\n";
+		file << "NetworkIterations " << NetworkIterations << "\n\n";
+		file << "InitialState" << endl;
+		for (node = 0; node < NetworkNodes; node++)
+			file << initialState[node] << " ";
+		file << "\n\n";
+		file << "InputWeights" << endl;
+		for (node = 0; node < NetworkNodes; node++)
+		{
+			for (childNode = 0; childNode < InputNodes; childNode++)
+				file << inputWeights[node][childNode] << " ";
+			file << endl;
+		}
+		file << endl;
+		file << "NetworkWeights" << endl;
+		for (node = 0; node < NetworkNodes; node++)
+		{
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+				file << networkWeights[node][childNode] << " ";
+			file << endl;
+		}
+		file << endl;
+		file << "OutputWeights" << endl;
+		for (node = 0; node < OutputNodes; node++)
+		{
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+				file << outputWeights[node][childNode] << " ";
+			file << endl;
+		}
+		file << endl;
+		file << "NetworkBias" << endl;
+		for (node = 0; node < NetworkNodes; node++)
+			file << networkBias[node] << " ";
+		file << "\n\n";
+		file << "OutputBias" << endl;
+		for (node = 0; node < OutputNodes; node++)
+			file << outputBias[node] << " ";
+		file << "\n\n";
+		file.close();
+	}
+
+	void Import()	// Imports the network from network.txt
+	{
+		string temp;
+		uint64_t node, childNode, tempParam;
+		ifstream file;
+		file.open("network.txt");
+		if (file.peek() == ifstream::traits_type::eof())
+			Initialize();
+		else
+		{
+			//file.ignore(numeric_limits<streamsize>::max(), '\n');
+			file >> temp;
+			file >> tempParam;
+			if (temp != "InputNodes" || tempParam != InputNodes)
+				throw "Protocol error";
+			if (tempParam != InputNodes)
+				throw "InputNodes mismatch";
+			cout << "InputNodes " << InputNodes << endl;
+			file >> temp;
+			file >> tempParam;
+			if (temp != "NetworkNodes" || tempParam != NetworkNodes)
+				throw "Protocol error";
+			if (tempParam != NetworkNodes)
+				throw "NetworkNodes mismatch";
+			cout << "NetworkNodes " << NetworkNodes << endl;
+			file >> temp;
+			file >> tempParam;
+			if (temp != "OutputNodes" || tempParam != OutputNodes)
+				throw "Protocol error";
+			if (tempParam != OutputNodes)
+				throw "OutputNodes mismatch";
+			cout << "OutputNodes " << OutputNodes << endl;
+			file >> temp;
+			file >> tempParam;
+			if (temp != "NetworkIterations" || tempParam != NetworkIterations)
+				throw "Protocol error";
+			if (tempParam != NetworkIterations)
+				throw "NetworkIterations mismatch";
+			cout << "NetworkIterations " << NetworkIterations << endl;
+			file >> temp;
+			if (temp != "InitialState")
+				throw "Protocol error";
+			for (node = 0; node < NetworkNodes; node++)
+			{
+				file >> initialState[node];
+				cout << initialState[node] << " ";
+			}
+			cout << endl;
+			file >> temp;
+			if (temp != "InputWeights")
+				throw "Protocol error";
+			for (node = 0; node < NetworkNodes; node++)
+			{
+				for (childNode = 0; childNode < InputNodes; childNode++)
+				{
+					file >> inputWeights[node][childNode];
+					cout << inputWeights[node][childNode] << " ";
+				}
+				cout << endl;
+			}
+			file >> temp;
+			if (temp != "NetworkWeights")
+				throw "Protocol error";
+			for (node = 0; node < NetworkNodes; node++)
+			{
+				for (childNode = 0; childNode < NetworkNodes; childNode++)
+				{
+					file >> networkWeights[node][childNode];
+					cout << networkWeights[node][childNode] << " ";
+				}
+				cout << endl;
+			}
+			file >> temp;
+			if (temp != "OutputWeights")
+				throw "Protocol error";
+			for (node = 0; node < OutputNodes; node++)
+			{
+				for (childNode = 0; childNode < NetworkNodes; childNode++)
+				{
+					file >> outputWeights[node][childNode];
+					cout << outputWeights[node][childNode] << " ";
+				}
+				cout << endl;
+			}
+			file >> temp;
+			if (temp != "NetworkBias")
+				throw "Protocol error";
+			for (node = 0; node < NetworkNodes; node++)
+			{
+				file >> networkBias[node];
+				cout << networkBias[node] << " ";
+			}
+			cout << endl;
+			file >> temp;
+			if (temp != "OutputBias")
+				throw "Protocol error";
+			for (node = 0; node < OutputNodes; node++)
+			{
+				file >> outputBias[node];
+				cout << outputBias[node] << " ";
+			}
+			cout << endl;
+		}
+		file.close();
+	}
+};
+
+class NetworkTrainer
+{
+private:
+	float initialState[NetworkNodes];						// Initial state of the network
+	float inputWeights[NetworkNodes][InputNodes];			// Input weights
+	float networkWeights[NetworkNodes][NetworkNodes];		// Network weights
+	float outputWeights[OutputNodes][NetworkNodes];			// Output weights
+	float networkBias[NetworkNodes];						// Network bias
+	float outputBias[OutputNodes];							// Output bias
+
+	vector<array<float, InputNodes>> interstates;			// Intermediate states of the network
+	vector<array<float, InputNodes>> states;				// States of the network
+
+	vector<array<float, InputNodes>> interstateGradients;	// Intermediate gradients of the network
+	
+public:
+	NetworkTrainer()
+	{
+		Initialize();
+	}
+
+	void Initialize()	// Initializes the network
+	{
+		uint64_t node, childNode;
+		for (node = 0; node < NetworkNodes; node++)
+		{
+			networkBias[node] = random.DoubleRandom();
+			initialState[node] = random.DoubleRandom();
+			for (childNode = 0; childNode < InputNodes; childNode++)
+				inputWeights[node][childNode] = random.DoubleRandom();
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+				networkWeights[node][childNode] = random.DoubleRandom();
+		}
+		for (node = 0; node < OutputNodes; node++)
+		{
+			outputBias[node] = random.DoubleRandom();
+			for (childNode = 0; childNode < NetworkNodes; childNode++)
+				outputWeights[node][childNode] = random.DoubleRandom();
 		}
 	}
 };
 
 int main()
 {
+	Network network;
+
+	network.Import();
+	network.Export();
+	
 	return 0;
 }
