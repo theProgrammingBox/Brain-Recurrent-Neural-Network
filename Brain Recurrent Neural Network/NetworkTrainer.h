@@ -110,31 +110,55 @@ public:
 		array<float, OutputNodes> expectedOutputArray;
 
 		// Adds the input to the input array for backpropagation
+		//cout << "Input array: ";
 		for (node = 0; node < InputNodes; node++)
+		{
 			inputArray[node] = input[node];
+			//cout << input[node] << " ";
+		}
 		inputs.push_back(inputArray);
+		//cout << "\n\n";
 
 		// Adds the expected output to the expected output array for backpropagation
+		//cout << "Expected output array: ";
 		for (node = 0; node < OutputNodes; node++)
+		{
 			expectedOutputArray[node] = expectedOutput[node];
+			//cout << expectedOutput[node] << " ";
+		}
 		expectedOutputs.push_back(expectedOutputArray);
+		//cout << "\n\n";
 
 		// Use the stored state as the first state if just reset
 		if (currentIteration != 0)
 		{
+			//cout << "Iteration: " << currentIteration << endl;
+
 			for (node = 0; node < NetworkNodes; node++)
 			{
+				//cout << "Value for node " << node << " is " << networkBias[node] << endl;
+				//cout << "----------------------\n";
 				sum = networkBias[node];
 
 				for (childNode = 0; childNode < InputNodes; childNode++)
+				{
 					sum += inputWeights[node][childNode] * input[childNode];
+					//cout << "+ " << inputWeights[node][childNode] << " * " << input[childNode] << " = " << sum << endl;
+				}
+				//cout << "----------------------\n";
 
 				// Uses the previous state to calculate the next state
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
+				{
 					sum += networkWeights[node][childNode] * states[currentIteration - 1][childNode];
+					//cout << "+ " << networkWeights[node][childNode] << " * " << states[currentIteration - 1][childNode] << " = " << sum << endl;
+				}
+				//cout << "----------------------\n";
 
 				interstateArray[node] = sum;
+				//cout << "The Intermediate State for node " << node << " is " << sum << endl;
 				stateArray[node] = Binary(sum);
+				//cout << "The State for node " << node << " is " << stateArray[node] << "\n\n\n";
 			}
 
 			// Add the intermediate state to the intermediate states array for backpropagation
@@ -146,13 +170,20 @@ public:
 			for (node = 0; node < OutputNodes; node++)
 			{
 				sum = outputBias[node];
+				//cout << "Value for output node " << node << " is " << outputBias[node] << endl;
+				//cout << "----------------------\n";
 
 				// Uses the just computed state to calculate the output
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
+				{
 					sum += outputWeights[node][childNode] * states[currentIteration][childNode];
+					//cout << "+ " << outputWeights[node][childNode] << " * " << states[currentIteration][childNode] << " = " << sum << endl;
+				}
+				//cout << "----------------------\n";
 
-				outputArray[node] = Binary(sum);
-				output[node] = outputArray[node];
+				outputArray[node] = sum;
+				output[node] = sum;
+				//cout << "The Output for node " << node << " is " << outputArray[node] << "\n\n\n";
 			}
 
 			// Add the output to the outputs array for backpropagation
@@ -160,20 +191,34 @@ public:
 		}
 		else
 		{
+			//cout << "First iteration\n";
+
 			// Use the initial state as the first state if just reset
 			for (node = 0; node < NetworkNodes; node++)
 			{
+				//cout << "Value for node " << node << " is " << networkBias[node] << endl;
+				//cout << "----------------------\n";
 				sum = networkBias[node];
 
 				for (childNode = 0; childNode < InputNodes; childNode++)
+				{
 					sum += inputWeights[node][childNode] * input[childNode];
+					//cout << "+ " << inputWeights[node][childNode] << " * " << input[childNode] << " = " << sum << endl;
+				}
+				//cout << "----------------------\n";
 
 				// Uses the initial state to calculate the next state
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
+				{
 					sum += networkWeights[node][childNode] * initialState[childNode];
+					//cout << "+ " << networkWeights[node][childNode] << " * " << initialState[childNode] << " = " << sum << endl;
+				}
+				//cout << "----------------------\n";
 
 				interstateArray[node] = sum;
+				//cout << "The Intermediate State for node " << node << " is " << sum << endl;
 				stateArray[node] = Binary(sum);
+				//cout << "The State for node " << node << " is " << stateArray[node] << "\n\n\n";
 			}
 
 			// Add the intermediate state to the intermediate states array for backpropagation
@@ -185,13 +230,20 @@ public:
 			for (node = 0; node < OutputNodes; node++)
 			{
 				sum = outputBias[node];
+				//cout << "Value for output node " << node << " is " << outputBias[node] << endl;
+				//cout << "----------------------\n";
 
 				// Uses the just computed state to calculate the output
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
+				{
 					sum += outputWeights[node][childNode] * states[currentIteration][childNode];
+					//cout << "+ " << outputWeights[node][childNode] << " * " << states[currentIteration][childNode] << " = " << sum << endl;
+				}
+				//cout << "----------------------\n";
 
-				outputArray[node] = Binary(sum);
-				output[node] = outputArray[node];
+				outputArray[node] = sum;
+				output[node] = sum;
+				//cout << "The Output for node " << node << " is " << outputArray[node] << "\n\n\n";
 			}
 
 			// Add the output to the outputs array for backpropagation
@@ -357,34 +409,35 @@ public:
 		// If the consecutive count is greater than the required number of consecutive iterations, then we can apply the stable gradient and then reset the data related to the gradients.
 		if (consecutiveOks == RequiredConsecutiveOks)
 		{
+			//cout << "Stable gradient reached after " << batchCount << " iterations." << endl;
 			for (node = 0; node < NetworkNodes; node++)
 			{
-				networkBiasGradient[node] += networkBiasGradientSum[node] / batchCount * LearningRate;
+				networkBias[node] += networkBiasGradientSum[node] / batchCount * LearningRate;
 				networkBiasGradientSum[node] = 0;
 
-				initialStateGradient[node] += initialStateGradientSum[node] / batchCount * LearningRate;
+				initialState[node] += initialStateGradientSum[node] / batchCount * LearningRate;
 				initialStateGradientSum[node] = 0;
 
 				for (childNode = 0; childNode < InputNodes; childNode++)
 				{
-					inputWeightGradients[node][childNode] += inputWeightGradientSums[node][childNode] / batchCount * LearningRate;
+					inputWeights[node][childNode] += inputWeightGradientSums[node][childNode] / batchCount * LearningRate;
 					inputWeightGradientSums[node][childNode] = 0;
 				}
 
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
 				{
-					networkWeightGradients[node][childNode] += networkWeightGradientSums[node][childNode] / batchCount * LearningRate;
+					networkWeights[node][childNode] += networkWeightGradientSums[node][childNode] / batchCount * LearningRate;
 					networkWeightGradientSums[node][childNode] = 0;
 				}
 			}
 			for (node = 0; node < OutputNodes; node++)
 			{
-				outputBiasGradient[node] += outputBiasGradientSum[node] / batchCount * LearningRate;
+				outputBias[node] += outputBiasGradientSum[node] / batchCount * LearningRate;
 				outputBiasGradientSum[node] = 0;
 
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
 				{
-					outputWeightGradients[node][childNode] += outputWeightGradientSums[node][childNode] / batchCount * LearningRate;
+					outputWeights[node][childNode] += outputWeightGradientSums[node][childNode] / batchCount * LearningRate;
 					outputWeightGradientSums[node][childNode] = 0;
 				}
 			}
