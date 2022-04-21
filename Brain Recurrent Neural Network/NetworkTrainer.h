@@ -1,6 +1,7 @@
 #pragma once
 #include "header.h"
 
+// Used for training the network. Backpropagation data is stored after every forwardpropagation.
 class NetworkTrainer
 {
 private:
@@ -211,8 +212,7 @@ public:
 		float networkBiasGradient[NetworkNodes]{};						// Network bias gradient
 		float outputBiasGradient[OutputNodes]{};						// Output bias gradient
 		float outputGradient[OutputNodes];								// Output gradient
-		float* interstateGradient = new float[NetworkNodes];			// Intermediate state gradient
-		float* previousInterstateGradient = new float[NetworkNodes];	// Previous intermediate state gradient
+		float* interstateGradient = new float[NetworkNodes] {};			// Intermediate state gradient
 
 		float standardDeviation;										// The distance to the previous gradient averages to determine the average gradient to apply
 
@@ -221,6 +221,8 @@ public:
 		// loop for every iteration excluding the first one to calculate the gradients
 		for (layer = currentIteration - 1; layer > 0; layer--)
 		{
+			float* previousInterstateGradient = new float[NetworkNodes] {};	// Previous intermediate state gradient
+
 			// Calculate the output gradient as well as the output bias gradient
 			for (node = 0; node < OutputNodes; node++)
 			{

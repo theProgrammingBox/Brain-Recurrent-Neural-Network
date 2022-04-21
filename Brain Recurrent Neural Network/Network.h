@@ -1,6 +1,7 @@
 #pragma once
 #include "header.h"
 
+// Used just for efficiently running the network, no backpropagation done here
 class Network
 {
 private:
@@ -10,7 +11,7 @@ private:
 	float outputWeights[OutputNodes][NetworkNodes];		// Output weights
 	float networkBias[NetworkNodes];					// Network bias
 	float outputBias[OutputNodes];						// Output bias
-	float* state;										// State of the network
+	float* state = new float[NetworkNodes];				// State of the network, stored as an address to optimize speed memory usage when setting it to its next state
 
 	// Restricts x between -1 and 1
 	float Binary(float x)
@@ -29,27 +30,35 @@ public:
 	{
 		uint64_t node, childNode;
 		Random random = Random();
-		delete[] state;
-		state = new float[NetworkNodes];
+
 		for (node = 0; node < NetworkNodes; node++)
 		{
+			// initialize network bias, initial state, and set state to initial state
 			networkBias[node] = random.DoubleRandom();
 			initialState[node] = random.DoubleRandom();
 			state[node] = initialState[node];
+
+			// initialize input weights
 			for (childNode = 0; childNode < InputNodes; childNode++)
 				inputWeights[node][childNode] = random.DoubleRandom();
+
+			// initialize network weights
 			for (childNode = 0; childNode < NetworkNodes; childNode++)
 				networkWeights[node][childNode] = random.DoubleRandom();
 		}
+
 		for (node = 0; node < OutputNodes; node++)
 		{
+			// initialize output bias
 			outputBias[node] = random.DoubleRandom();
+
+			// initialize output weights
 			for (childNode = 0; childNode < NetworkNodes; childNode++)
 				outputWeights[node][childNode] = random.DoubleRandom();
 		}
 	}
 
-	// Resets the network to its initial state
+	// Resets the network state to its initial state
 	void Reset()
 	{
 		uint64_t node;
@@ -63,22 +72,31 @@ public:
 		uint64_t node, childNode;
 		float sum;
 		float* nextState = new float[NetworkNodes];
+
 		for (node = 0; node < NetworkNodes; node++)
 		{
 			sum = networkBias[node];
+
 			for (childNode = 0; childNode < InputNodes; childNode++)
 				sum += inputWeights[node][childNode] * input[childNode];
+
 			for (childNode = 0; childNode < NetworkNodes; childNode++)
 				sum += networkWeights[node][childNode] * state[childNode];
+
 			nextState[node] = Binary(sum);
 		}
+
+		// Delete the old state and set the new state
 		delete[] state;
 		state = nextState;
+
 		for (node = 0; node < OutputNodes; node++)
 		{
 			sum = outputBias[node];
+
 			for (childNode = 0; childNode < NetworkNodes; childNode++)
 				sum += outputWeights[node][childNode] * state[childNode];
+
 			output[node] = Binary(sum);
 		}
 	}
