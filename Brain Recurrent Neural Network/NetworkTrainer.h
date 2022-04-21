@@ -11,18 +11,21 @@ private:
 	float outputWeights[OutputNodes][NetworkNodes];				// Output weights
 	float networkBias[NetworkNodes];							// Network bias
 	float outputBias[OutputNodes];								// Output bias
+
 	vector<array<float, NetworkNodes>> interstates;				// Intermediate states of the network
 	vector<array<float, NetworkNodes>> states;					// States of the network
-	vector<array<float, NetworkNodes>> interstateGradients;		// Intermediate gradients of the network
+
 	vector<array<float, InputNodes>>  inputs;					// Inputs to the network
 	vector<array<float, OutputNodes>>  outputs;					// Outputs of the network
 	vector<array<float, OutputNodes>>  expectedOutputs;			// Expected outputs of the network
+
 	float initialStateGradientSum[NetworkNodes];
 	float inputWeightGradientSums[NetworkNodes][InputNodes];
 	float networkWeightGradientSums[NetworkNodes][NetworkNodes];
 	float outputWeightGradientSums[OutputNodes][NetworkNodes];
 	float networkBiasGradientSum[NetworkNodes];
 	float outputBiasGradientSum[OutputNodes];
+
 	uint64_t batchCount;
 	uint64_t consecutiveOks;
 	uint64_t currentIteration;
@@ -53,7 +56,6 @@ public:
 
 		interstates.clear();
 		states.clear();
-		interstateGradients.clear();
 		inputs.clear();
 		outputs.clear();
 		expectedOutputs.clear();
@@ -95,7 +97,7 @@ public:
 		currentIteration = 0;
 	}
 
-	// Propagates the input once through the network and calculates the output while storing the expected output
+	// Propagates the input once through the network and calculates the output while storing the nessesary data for backpropagation. It is a single 'step' in a single 'run'.
 	void ForwardPropagate(float* input, float* output, float* expectedOutput)
 	{
 		uint64_t node, childNode;
@@ -116,9 +118,6 @@ public:
 		for (node = 0; node < OutputNodes; node++)
 			expectedOutputArray[node] = expectedOutput[node];
 		expectedOutputs.push_back(expectedOutputArray);
-
-		// Add an empty array to the intermediate states for backpropagation
-		interstateGradients.push_back(interstateGradientArray);
 
 		// Use the stored state as the first state if just reset
 		if (currentIteration != 0)
@@ -203,6 +202,7 @@ public:
 		currentIteration++;
 	}
 
+	// Backpropagation is the same thing as reseting the entire 'run' and compiling changes. These gradients will not be applied until multiple backpropagations have been performed in which these gradients will be averaged and applied when stable.
 	void BackPropagate()
 	{
 		float initialStateGradient[NetworkNodes]{};						// Initial state gradient
@@ -212,7 +212,7 @@ public:
 		float networkBiasGradient[NetworkNodes]{};						// Network bias gradient
 		float outputBiasGradient[OutputNodes]{};						// Output bias gradient
 		float outputGradient[OutputNodes];								// Output gradient
-		float* interstateGradient = new float[NetworkNodes] {};			// Intermediate state gradient
+		float* interstateGradients = new float[NetworkNodes] {};		// Intermediate state gradient, stored as an address to optimize speed and memory usage when setting it to its 'previous' interstateGradient
 
 		float standardDeviation;										// The distance to the previous gradient averages to determine the average gradient to apply
 
@@ -235,25 +235,29 @@ public:
 				// Calculate the output weight gradient as well as the intermediate state gradient
 				for (childNode = 0; childNode < OutputNodes; childNode++)
 				{
-					interstateGradients[layer][node] += outputWeights[childNode][node] * outputGradient[childNode];
+					interstateGradients[node] += outputWeights[childNode][node] * outputGradient[childNode];
 					outputWeightGradients[childNode][node] += outputGradient[childNode] * states[layer][node];
 				}
 
 				// Calculate the network bias gradient as well as the intermediate state gradient
-				interstateGradients[layer][node] *= BinaryGradient(interstates[layer][node]);
-				networkBiasGradient[node] += interstateGradients[layer][node];
+				interstateGradients[node] *= BinaryGradient(interstates[layer][node]);
+				networkBiasGradient[node] += interstateGradients[node];
 
 				// Calculate the network weight gradient
 				for (childNode = 0; childNode < InputNodes; childNode++)
-					inputWeightGradients[node][childNode] += inputs[layer][childNode] * interstateGradients[layer][node];
+					inputWeightGradients[node][childNode] += inputs[layer][childNode] * interstateGradients[node];
 
 				// Calculate the network weight gradient as well as the intermediate state gradient
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
 				{
-					interstateGradients[layer - 1][childNode] += networkWeights[node][childNode] * interstateGradients[layer][node];
-					networkWeightGradients[node][childNode] += states[layer - 1][childNode] * interstateGradients[layer][node];
+					previousInterstateGradient[childNode] += networkWeights[node][childNode] * interstateGradients[node];
+					networkWeightGradients[node][childNode] += states[layer - 1][childNode] * interstateGradients[node];
 				}
 			}
+
+			// delete the interstate gradient array and replace it with the 'previous' gradient (It is calculating the gradients from the last iteration to the first one)
+			delete[] interstateGradients;
+			interstateGradients = previousInterstateGradient;
 		}
 
 		// calculate the first iteration gradients using starting values, aka initial state
@@ -267,30 +271,33 @@ public:
 		{
 			for (childNode = 0; childNode < OutputNodes; childNode++)
 			{
-				interstateGradients[0][node] += outputWeights[childNode][node] * outputGradient[childNode];
+				interstateGradients[node] += outputWeights[childNode][node] * outputGradient[childNode];
 				outputWeightGradients[childNode][node] += outputGradient[childNode] * states[0][node];
 			}
 
-			interstateGradients[0][node] *= BinaryGradient(interstates[0][node]);
-			networkBiasGradient[node] += interstateGradients[0][node];
+			interstateGradients[node] *= BinaryGradient(interstates[0][node]);
+			networkBiasGradient[node] += interstateGradients[node];
 
 			for (childNode = 0; childNode < InputNodes; childNode++)
-				inputWeightGradients[node][childNode] += inputs[layer][childNode] * interstateGradients[0][node];
+				inputWeightGradients[node][childNode] += inputs[layer][childNode] * interstateGradients[node];
 
 			for (childNode = 0; childNode < NetworkNodes; childNode++)
 			{
-				initialStateGradient[childNode] += networkWeights[node][childNode] * interstateGradients[0][node];
-				networkWeightGradients[node][childNode] += initialState[childNode] * interstateGradients[0][node];
+				initialStateGradient[childNode] += networkWeights[node][childNode] * interstateGradients[node];
+				networkWeightGradients[node][childNode] += initialState[childNode] * interstateGradients[node];
 			}
 		}
 
+		delete[] interstateGradients;
+
+		// Clears the backpropagation data for the next run
 		interstates.clear();
 		states.clear();
-		interstateGradients.clear();
 		inputs.clear();
 		outputs.clear();
 		expectedOutputs.clear();
 
+		// Reset the iteration.
 		currentIteration = 0;
 
 		if (batchCount != 0)
@@ -301,18 +308,22 @@ public:
 			{
 				standardDeviation += pow((networkBiasGradientSum[node] + networkBiasGradient[node]) / (batchCount + 1) - (networkBiasGradientSum[node] / batchCount), 2);
 				standardDeviation += pow((initialStateGradientSum[node] + initialStateGradient[node]) / (batchCount + 1) - (initialStateGradientSum[node] / batchCount), 2);
+
 				for (childNode = 0; childNode < InputNodes; childNode++)
 					standardDeviation += pow((inputWeightGradientSums[node][childNode] + inputWeightGradients[node][childNode]) / (batchCount + 1) - (inputWeightGradientSums[node][childNode] / batchCount), 2);
+
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
 					standardDeviation += pow((networkWeightGradientSums[node][childNode] + networkWeightGradients[node][childNode]) / (batchCount + 1) - (networkWeightGradientSums[node][childNode] / batchCount), 2);
 			}
 			for (node = 0; node < OutputNodes; node++)
 			{
 				standardDeviation += pow((outputBiasGradientSum[node] + outputBiasGradient[node]) / (batchCount + 1) - (outputBiasGradientSum[node] / batchCount), 2);
+
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
 					standardDeviation += pow((outputWeightGradientSums[node][childNode] + outputWeightGradients[node][childNode]) / (batchCount + 1) - (outputWeightGradientSums[node][childNode] / batchCount), 2);
 			}
 
+			// sqrt(standardDeviation), distance equation, but we square both sides for optimization. Adds a count to the consecutive count if passes, else resets it.
 			if (standardDeviation < GradientPrecision * GradientPrecision)
 			{
 				consecutiveOks++;
@@ -323,6 +334,7 @@ public:
 			}
 		}
 
+		// Add all the gradients to the gradient sums.
 		for (node = 0; node < NetworkNodes; node++)
 		{
 			networkBiasGradientSum[node] += networkBiasGradient[node];
@@ -339,30 +351,42 @@ public:
 				outputWeightGradientSums[node][childNode] += outputWeightGradients[node][childNode];
 		}
 
+		// Increment the batchCount
 		batchCount++;
 
+		// If the consecutive count is greater than the required number of consecutive iterations, then we can apply the stable gradient and then reset the data related to the gradients.
 		if (consecutiveOks == RequiredConsecutiveOks)
 		{
 			for (node = 0; node < NetworkNodes; node++)
 			{
 				networkBiasGradient[node] += networkBiasGradientSum[node] / batchCount * LearningRate;
 				networkBiasGradientSum[node] = 0;
+
 				initialStateGradient[node] += initialStateGradientSum[node] / batchCount * LearningRate;
 				initialStateGradientSum[node] = 0;
+
 				for (childNode = 0; childNode < InputNodes; childNode++)
+				{
 					inputWeightGradients[node][childNode] += inputWeightGradientSums[node][childNode] / batchCount * LearningRate;
-				inputWeightGradientSums[node][childNode] = 0;
+					inputWeightGradientSums[node][childNode] = 0;
+				}
+
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
+				{
 					networkWeightGradients[node][childNode] += networkWeightGradientSums[node][childNode] / batchCount * LearningRate;
-				networkWeightGradientSums[node][childNode] = 0;
+					networkWeightGradientSums[node][childNode] = 0;
+				}
 			}
 			for (node = 0; node < OutputNodes; node++)
 			{
 				outputBiasGradient[node] += outputBiasGradientSum[node] / batchCount * LearningRate;
 				outputBiasGradientSum[node] = 0;
+
 				for (childNode = 0; childNode < NetworkNodes; childNode++)
+				{
 					outputWeightGradients[node][childNode] += outputWeightGradientSums[node][childNode] / batchCount * LearningRate;
-				outputWeightGradientSums[node][childNode] = 0;
+					outputWeightGradientSums[node][childNode] = 0;
+				}
 			}
 
 			batchCount = 0;

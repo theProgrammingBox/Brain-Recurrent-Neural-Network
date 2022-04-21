@@ -11,7 +11,7 @@ private:
 	float outputWeights[OutputNodes][NetworkNodes];		// Output weights
 	float networkBias[NetworkNodes];					// Network bias
 	float outputBias[OutputNodes];						// Output bias
-	float* state = new float[NetworkNodes];				// State of the network, stored as an address to optimize speed memory usage when setting it to its next state
+	float* state = new float[NetworkNodes];				// State of the network, stored as an address to optimize speed and memory usage when setting it to its next state
 
 	// Restricts x between -1 and 1
 	float Binary(float x)
