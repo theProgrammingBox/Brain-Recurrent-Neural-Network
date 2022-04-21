@@ -4,10 +4,11 @@
 
 int main()
 {
-	ifstream file("network.txt");
+	// This is required for it to run on repl.it
+	/*ifstream file("network.txt");
 	string in;
 	file >> in;
-	file.close();
+	file.close();*/
 
 	NetworkTrainer network;
 	network.Import();
