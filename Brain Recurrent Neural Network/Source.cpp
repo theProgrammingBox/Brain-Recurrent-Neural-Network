@@ -1,26 +1,15 @@
 #include "Network.h"
 #include "NetworkTrainer.h"
 
-
-int main()
+void DoARun(NetworkTrainer& network)
 {
-	// This is required for it to run on repl.it
-	/*ifstream file("network.txt");
-	string in;
-	file >> in;
-	file.close();*/
 	Random random = Random();
-
 	float input[InputNodes]{};
 	float output[OutputNodes]{};
 	float expectedOutput[OutputNodes]{};
 
-	NetworkTrainer network = NetworkTrainer();
-	//network.Import();
-	uint64_t iterations = 0;
-	while (true || iterations < 10000)
+	for (int i = 0; i < 10; i++)
 	{
-		iterations++;
 		float sum = 0;
 		for (uint64_t i = 0; i < InputNodes; i++)
 		{
@@ -32,37 +21,70 @@ int main()
 			expectedOutput[i] = sum + i;
 		}
 		network.ForwardPropagate(input, output, expectedOutput);
-		network.BackPropagate();
-		if (iterations % 1000 == 0)
+	}
+	network.BackPropagate();
+}
+
+float GetError(NetworkTrainer& network, uint64_t iterations)
+{
+	float error = 0;
+	Random random = Random();
+	float input[InputNodes]{};
+	float output[OutputNodes]{};
+	float expectedOutput[OutputNodes]{};
+	for (int iteration = 0; iteration < iterations; iteration++)
+	{
+		for (int i = 0; i < 10; i++)
 		{
-			float error = 0;
-
-			cout << "Iteration: " << iterations << endl;
-
-			cout << "Output: ";
+			float sum = 0;
+			for (uint64_t i = 0; i < InputNodes; i++)
+			{
+				input[i] = random.DoubleRandom();
+				sum += input[i];
+			}
 			for (uint64_t i = 0; i < OutputNodes; i++)
 			{
-				cout << output[i] << " ";
+				expectedOutput[i] = sum + i;
 			}
-			cout << endl;
+			network.ForwardPropagate(input, output, expectedOutput);
 
 			for (uint64_t i = 0; i < OutputNodes; i++)
 			{
 				error += abs(expectedOutput[i] - output[i]);
 			}
-
-			cout << "Error: " << error << "\n\n";
 		}
 	}
-	/*for (int i = 0; i < InputNodes; i++)
+
+	return error / iterations;
+}
+
+int main()
+{
+	// This is required for it to run on repl.it
+	/*ifstream file("network.txt");
+	string in;
+	file >> in;
+	file.close();*/
+
+	NetworkTrainer network = NetworkTrainer();
+	network.Import();
+	float error = 1;
+	uint64_t iterations = 0;
+
+	while (error > 0.001)
 	{
-		input[i] = random.DoubleRandom();
+		iterations++;
+		DoARun(network);
+
+		if (iterations % 1000 == 0)
+		{
+			error = GetError(network, 1000);
+			cout << "Iteration: " << iterations << ", Error: " << error << "\n\n";
+			network.Export();
+		}
 	}
-	for (int i = 0; i < OutputNodes; i++)
-	{
-		expectedOutput[i] = random.DoubleRandom();
-	}
-	network.ForwardPropagate(input, output, expectedOutput);*/
+	cout << "Iteration: " << iterations << ", Error: " << GetError(network, 1000) << "\n\n";
 	network.Export();
+
 	return 0;
 }

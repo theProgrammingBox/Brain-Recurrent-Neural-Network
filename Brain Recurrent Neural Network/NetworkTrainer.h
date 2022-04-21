@@ -409,7 +409,7 @@ public:
 		// If the consecutive count is greater than the required number of consecutive iterations, then we can apply the stable gradient and then reset the data related to the gradients.
 		if (consecutiveOks == RequiredConsecutiveOks)
 		{
-			//cout << "Stable gradient reached after " << batchCount << " iterations." << endl;
+			//cout << "Stable gradient reached after " << batchCount << " runs." << endl;
 			for (node = 0; node < NetworkNodes; node++)
 			{
 				networkBias[node] += networkBiasGradientSum[node] / batchCount * LearningRate;
