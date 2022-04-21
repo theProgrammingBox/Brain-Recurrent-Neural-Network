@@ -144,6 +144,12 @@
   <ItemGroup>
     <Text Include="network.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Header.h" />
+    <ClInclude Include="Network.h" />
+    <ClInclude Include="NetworkTrainer.h" />
+    <ClInclude Include="Randoms.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
