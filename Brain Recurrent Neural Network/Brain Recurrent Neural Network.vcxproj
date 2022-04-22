@@ -142,6 +142,7 @@
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="Data.txt" />
     <Text Include="network.txt" />
   </ItemGroup>
   <ItemGroup>

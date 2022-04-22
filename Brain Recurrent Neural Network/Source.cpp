@@ -66,25 +66,52 @@ int main()
 	file >> in;
 	file.close();*/
 
-	NetworkTrainer network = NetworkTrainer();
-	network.Import();
-	float error = 1;
-	uint64_t iterations = 0;
+	uint64_t RequiredConsecutiveOksArr[4] = { 10, 6, 3, 1 };
 
-	while (error > 0.001)
+	float GradientPrecisionArr[4] = { 1, 0.5, 0.1, 0.05 };
+
+	float LearningRateArr[4] = { 0.05, 0.01, 0.005, 0.001 };
+
+	ofstream fout("Data.txt");
+
+	for (int item = 0; item < 64; item++)
 	{
-		iterations++;
-		DoARun(network);
+		RequiredConsecutiveOks = RequiredConsecutiveOksArr[item & 3];
+		GradientPrecision = GradientPrecisionArr[int((item & 15) / 4.0)];
+		LearningRate = LearningRateArr[int(item / 16.0)];
 
-		if (iterations % 1000 == 0)
+		fout << "RequiredConsecutiveOks: " << RequiredConsecutiveOks << endl;
+		fout << "GradientPrecision: " << GradientPrecision << endl;
+		fout << "LearningRate: " << LearningRate << endl;
+
+		for (int j = 0; j < 10; j++)
 		{
-			error = GetError(network, 1000);
-			cout << "Iteration: " << iterations << ", Error: " << error << "\n\n";
-			network.Export();
+			cout << (10 * item + j) / 6.40 << "%" << endl;
+			fout << "Run " << j << endl;
+
+			NetworkTrainer network = NetworkTrainer();
+			uint64_t iterations = 0;
+			float error;
+
+			while (iterations < 10000)
+			{
+				iterations++;
+				DoARun(network);
+
+				if (iterations % 1000 == 0)
+				{
+					error = GetError(network, 1000);
+					fout << "Iteration: " << iterations << " Error: " << error << endl;
+					/*cout << "Iteration: " << iterations << ", Error: " << error << "\n\n";
+					network.Export();*/
+				}
+			}
 		}
+		/*cout << "Iteration: " << iterations << ", Error: " << GetError(network, 1000) << "\n\n";
+		network.Export();*/
 	}
-	cout << "Iteration: " << iterations << ", Error: " << GetError(network, 1000) << "\n\n";
-	network.Export();
+
+	fout.close();
 
 	return 0;
 }

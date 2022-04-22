@@ -23,6 +23,9 @@
     <Text Include="network.txt">
       <Filter>Source Files</Filter>
     </Text>
+    <Text Include="Data.txt">
+      <Filter>Source Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Randoms.h">
