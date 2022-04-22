@@ -98,9 +98,9 @@ int main()
 				iterations++;
 				DoARun(network);
 
-				if (iterations % 1000 == 0)
+				if (iterations % 100 == 0)
 				{
-					error = GetError(network, 1000);
+					error = GetError(network, 100);
 					fout << "Iteration: " << iterations << " Error: " << error << endl;
 					/*cout << "Iteration: " << iterations << ", Error: " << error << "\n\n";
 					network.Export();*/
