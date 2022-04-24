@@ -40,5 +40,8 @@
     <ClInclude Include="NetworkTrainer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetworkParameters.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

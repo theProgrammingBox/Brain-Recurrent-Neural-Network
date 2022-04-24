@@ -148,6 +148,7 @@
   <ItemGroup>
     <ClInclude Include="Header.h" />
     <ClInclude Include="Network.h" />
+    <ClInclude Include="NetworkParameters.h" />
     <ClInclude Include="NetworkTrainer.h" />
     <ClInclude Include="Randoms.h" />
   </ItemGroup>
